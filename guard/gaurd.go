@@ -190,6 +190,8 @@ func (guard *Guard) GetPeers() (peers map[string]*Peer, err error) {
 			peers[peerUuid] = peer
 		}
 	}
+
+	return
 }
 
 func (guard *Guard) GetRedisPeer(id string) (*RedisPeer, error) {

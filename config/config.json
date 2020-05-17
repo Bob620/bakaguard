@@ -1,0 +1,13 @@
+{
+  "interface": {
+    "name": "wg0"
+  },
+  "ws": {
+    "port": 6065,
+    "adminPassword": "",
+    "userPassword": ""
+  },
+  "redis": {
+    "port": 6379
+  }
+}

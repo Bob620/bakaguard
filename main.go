@@ -23,9 +23,25 @@ func main() {
 
 	conf := config.LoadConfiguration()
 
+	devices, err := wg.Devices()
+	if err != nil {
+		log.Fatal("unable to access wireguard")
+	}
+
+	fmt.Printf("Found %d Wireguard devices\n", len(devices))
+
 	_, err = wg.Device(conf.Interface.Name)
 	if os.IsNotExist(err) {
-		log.Fatal("unable to find", conf.Interface.Name)
+		log.Fatal("Unable to find ", conf.Interface.Name)
+		//		fmt.Println("Making interface...")
+		//		privateKey, _ := wgtypes.GeneratePrivateKey()
+		//		wg.ConfigureDevice(conf.Interface.Name, wgtypes.Config{
+		//			PrivateKey:   &privateKey,
+		//			ListenPort:   nil,
+		//			FirewallMark: nil,
+		//			ReplacePeers: false,
+		//			Peers:        nil,
+		//		})
 	}
 
 	fmt.Println("Wireguard set up successfully")
