@@ -8,19 +8,25 @@ import (
 
 const configLocation = "./config/config.json"
 
+type Redis struct {
+	Port     int `json:"port"`
+	Database int `json:"db"`
+}
+
+type Websocket struct {
+	Port          int    `json:"port"`
+	AdminPassword string `json:"adminPassword"`
+	UserPassword  string `json:"userPassword"`
+}
+
+type Interface struct {
+	Name string `json:"name"`
+}
+
 type Config struct {
-	Interface struct {
-		Name string `json:"name"`
-	} `json:"interface"`
-	Websocket struct {
-		Port          int    `json:"port"`
-		AdminPassword string `json:"adminPassword"`
-		UserPassword  string `json:"userPassword"`
-	} `json:"ws"`
-	Redis struct {
-		Port     int `json:"port"`
-		Database int `json:"db"`
-	} `json:"redis"`
+	Interface *Interface `json:"interface"`
+	Websocket *Websocket `json:"ws"`
+	Redis     *Redis     `json:"redis"`
 }
 
 func LoadConfiguration() (conf Config) {

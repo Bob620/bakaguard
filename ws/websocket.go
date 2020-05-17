@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/bob620/bakaguard/guard"
+	"github.com/bob620/bakaguard/ws/state"
 )
 
 var upgrader = websocket.Upgrader{}
@@ -18,14 +19,56 @@ type WS struct {
 	client *rpc.BakaRpc
 }
 
-func CreateWs(guard *guard.Guard) WS {
+func CreateWs(guard *guard.Guard, state *state.State) WS {
 	ws := WS{rpcClient}
+
+	rpcClient.RegisterMethod(
+		"admin.auth",
+		[]parameters.Param{
+			&parameters.StringParam{Name: "password", IsRequired: true},
+		}, func(params map[string]parameters.Param) (returnMessage json.RawMessage, err error) {
+			if state.HasAdminAuth() {
+				return []byte(`{"auth": true}`), nil
+			}
+
+			password, _ := params["password"].(*parameters.StringParam).GetString()
+			if state.TryAdminPassword(password) {
+				returnMessage = []byte(`{"auth": true}`)
+			} else {
+				returnMessage = []byte(`{"auth": false}`)
+			}
+
+			return returnMessage, err
+		})
+
+	rpcClient.RegisterMethod(
+		"user.auth",
+		[]parameters.Param{
+			&parameters.StringParam{Name: "password", IsRequired: true},
+		}, func(params map[string]parameters.Param) (returnMessage json.RawMessage, err error) {
+			if state.HasUserAuth() {
+				return []byte(`{"auth": true}`), nil
+			}
+
+			password, _ := params["password"].(*parameters.StringParam).GetString()
+			if state.TryUserPassword(password) {
+				returnMessage = []byte(`{"auth": true}`)
+			} else {
+				returnMessage = []byte(`{"auth": false}`)
+			}
+
+			return returnMessage, err
+		})
 
 	rpcClient.RegisterMethod(
 		"peers.get",
 		[]parameters.Param{
 			&parameters.StringParam{Name: "uuid", IsRequired: true},
 		}, func(params map[string]parameters.Param) (returnMessage json.RawMessage, err error) {
+			if !state.HasAdminAuth() {
+				return []byte(`{"error": "Please authenticate as admin"}`), nil
+			}
+
 			uuid, _ := params["uuid"].(*parameters.StringParam).GetString()
 			peer, err := guard.GetWgPeer(uuid)
 			if err != nil {
@@ -38,6 +81,10 @@ func CreateWs(guard *guard.Guard) WS {
 		"peers.all",
 		[]parameters.Param{},
 		func(params map[string]parameters.Param) (returnMessage json.RawMessage, err error) {
+			if !state.HasAdminAuth() {
+				return []byte(`{"error": "Please authenticate as admin"}`), nil
+			}
+
 			peers, err := guard.GetPeers()
 			if err != nil {
 				return nil, err

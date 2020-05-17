@@ -10,8 +10,9 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl"
 
 	"github.com/bob620/bakaguard/config"
-	guard2 "github.com/bob620/bakaguard/guard"
+	"github.com/bob620/bakaguard/guard"
 	"github.com/bob620/bakaguard/ws"
+	"github.com/bob620/bakaguard/ws/state"
 )
 
 func main() {
@@ -38,10 +39,12 @@ func main() {
 
 	fmt.Println("Redis connected")
 
-	guard := guard2.CreateGuard(conf, wg, redisConn)
-	socket := ws.CreateWs(guard)
+	guard := guard.CreateGuard(conf, wg, redisConn)
 
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
+		connState := state.InitializeConnState(*conf.Websocket)
+
+		socket := ws.CreateWs(guard, connState)
 		socket.Handler(writer, request)
 	})
 
