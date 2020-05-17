@@ -11,6 +11,7 @@ type State struct {
 
 func InitializeConnState(config config.Websocket) *State {
 	return &State{
+		config:    config,
 		authScope: 0,
 	}
 }
