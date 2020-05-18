@@ -191,12 +191,12 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 	}
 
 	_, err = guard.redisConn.Do("sadd", fmt.Sprintf("%s:%s", redisRoot, redisPeer), peer.Uuid)
-	if err != nil {
+	if err != nil && err != redis.ErrNil {
 		return err
 	}
 
 	_, err = guard.redisConn.Do("sadd", fmt.Sprintf("%s:%s", redisRoot, peerSearchPublicKey), peer.PublicKey)
-	if err != nil {
+	if err != nil && err != redis.ErrNil {
 		return err
 	}
 
