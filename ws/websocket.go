@@ -101,7 +101,7 @@ func CreateWs(guard *guard.Guard, state *state.State) WS {
 			&parameters.StringParam{Name: "uuid", IsRequired: true},
 			&parameters.StringParam{Name: "name"},
 			&parameters.StringParam{Name: "description"},
-			&parameters.IntParam{Name: "keepAlive", Default: -1},
+			&parameters.StringParam{Name: "keepAlive", Default: "-1s"},
 			&IPNetParam{Name: "allowedIPs", Default: []net.IPNet{}},
 		},
 		func(params map[string]parameters.Param) (returnMessage json.RawMessage, err error) {
@@ -112,7 +112,7 @@ func CreateWs(guard *guard.Guard, state *state.State) WS {
 			uuid, _ := params["uuid"].(*parameters.StringParam).GetString()
 			name, _ := params["name"].(*parameters.StringParam).GetString()
 			desc, _ := params["description"].(*parameters.StringParam).GetString()
-			keepAlive, _ := params["keepAlive"].(*parameters.IntParam).GetInt()
+			keepAlive, _ := params["keepAlive"].(*parameters.StringParam).GetString()
 			allowedIPs, _ := params["allowedIPs"].(*IPNetParam).GetIPNet()
 
 			peer, err := guard.GetWgPeer(uuid)
@@ -129,8 +129,8 @@ func CreateWs(guard *guard.Guard, state *state.State) WS {
 				peer.Description = desc
 			}
 
-			if keepAlive >= 0 {
-				peer.KeepAlive = time.Second * time.Duration(keepAlive)
+			if keepAlive != "-1s" {
+				peer.KeepAlive, _ = time.ParseDuration(keepAlive)
 			}
 
 			if len(allowedIPs) > 0 {
