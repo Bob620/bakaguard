@@ -91,14 +91,14 @@ func (guard *Guard) CleanupPeers() error {
 func (guard *Guard) GetRedisPeerMap() (peers map[string]string, err error) {
 	peers = make(map[string]string)
 
-	keys, err := guard.redisConn.Do("smembers", fmt.Sprintf("%s:%s", redisRoot, peerSearchPublicKey))
+	keys, err := redis.Strings(guard.redisConn.Do("smembers", fmt.Sprintf("%s:%s", redisRoot, peerSearchPublicKey)))
 	if err != nil {
 		return
 	}
 
-	for _, key := range keys.([]string) {
-		uuid, _ := guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s", redisRoot, peerSearchPublicKey, key))
-		peers[key] = uuid.(string)
+	for _, key := range keys {
+		uuid, _ := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s", redisRoot, peerSearchPublicKey, key)))
+		peers[key] = uuid
 	}
 
 	return
@@ -207,29 +207,29 @@ func (guard *Guard) GetRedisPeer(id string) (*RedisPeer, error) {
 		Description: "",
 		PublicKey:   "",
 	}
-	data, err := guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, id))
+	data, err := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, id)))
 	if err != nil {
 		return nil, err
 	}
-	peer.Uuid = data.(string)
+	peer.Uuid = data
 
-	data, err = guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:name", redisRoot, redisPeer, id))
+	data, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:name", redisRoot, redisPeer, id)))
 	if err != nil {
 		return nil, err
 	}
-	peer.Name = data.(string)
+	peer.Name = data
 
-	data, err = guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:desc", redisRoot, redisPeer, id))
+	data, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:desc", redisRoot, redisPeer, id)))
 	if err != nil {
 		return nil, err
 	}
-	peer.Description = data.(string)
+	peer.Description = data
 
-	data, err = guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:publicKey", redisRoot, redisPeer, id))
+	data, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:publicKey", redisRoot, redisPeer, id)))
 	if err != nil {
 		return nil, err
 	}
-	peer.PublicKey = data.(string)
+	peer.PublicKey = data
 
 	return &peer, nil
 }
