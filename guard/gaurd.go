@@ -2,7 +2,6 @@ package guard
 
 import (
 	"fmt"
-	"net"
 
 	"github.com/gomodule/redigo/redis"
 	uuid "github.com/nu7hatch/gouuid"
@@ -15,27 +14,6 @@ import (
 const redisRoot = "bakaguard"
 const redisPeer = "peers"
 const peerSearchPublicKey = "search:publicKey"
-
-type Guard struct {
-	config    config.Config
-	wg        *wgctrl.Client
-	redisConn redis.Conn
-}
-
-type RedisPeer struct {
-	Uuid        string
-	Name        string
-	Description string
-	PublicKey   string
-}
-
-type Peer struct {
-	Uuid        string `json:"uuid"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	PublicKey   string
-	AllowedIPs  []net.IPNet `json:"allowedIPs"`
-}
 
 func CreateRedisPeer(publicKey string, name string, description string) *RedisPeer {
 	id, _ := uuid.NewV4()
@@ -86,6 +64,52 @@ func (guard *Guard) CleanupPeers() error {
 	}
 
 	return nil
+}
+
+func (guard *Guard) UpdatePeer(peer *Peer) (err error) {
+	if peer.Uuid == "" {
+		return fmt.Errorf("no uuid provided")
+	}
+
+	publicKey, err := wgtypes.ParseKey(peer.PublicKey)
+	if err != nil {
+		return fmt.Errorf("unable to verify public key")
+	}
+
+	err = guard.wg.ConfigureDevice(guard.config.Interface.Name, wgtypes.Config{
+		PrivateKey:   nil,
+		ListenPort:   nil,
+		FirewallMark: nil,
+		ReplacePeers: false,
+		Peers: []wgtypes.PeerConfig{
+			{
+				PublicKey:                   publicKey,
+				Remove:                      false,
+				UpdateOnly:                  true,
+				PresharedKey:                nil,
+				Endpoint:                    nil,
+				PersistentKeepaliveInterval: &peer.KeepAlive,
+				ReplaceAllowedIPs:           true,
+				AllowedIPs:                  peer.AllowedIPs,
+			},
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("unable to update peer configuration")
+	}
+
+	err = guard.SetRedisPeer(&RedisPeer{
+		Uuid:        peer.Uuid,
+		Name:        peer.Name,
+		Description: peer.Description,
+		PublicKey:   peer.PublicKey,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to update peer configuration")
+	}
+
+	return
 }
 
 func (guard *Guard) GetRedisPeerMap() (peers map[string]string, err error) {
@@ -252,11 +276,13 @@ func (guard *Guard) GetWgPeer(id string) (*Peer, error) {
 	for _, peer := range device.Peers {
 		if peer.PublicKey == redisKey {
 			return &Peer{
-				Uuid:        redisPeer.Uuid,
-				Name:        redisPeer.Name,
-				Description: redisPeer.Description,
-				PublicKey:   redisPeer.PublicKey,
-				AllowedIPs:  peer.AllowedIPs,
+				Uuid:          redisPeer.Uuid,
+				Name:          redisPeer.Name,
+				Description:   redisPeer.Description,
+				PublicKey:     redisPeer.PublicKey,
+				AllowedIPs:    peer.AllowedIPs,
+				KeepAlive:     peer.PersistentKeepaliveInterval,
+				LastHandshake: peer.LastHandshakeTime,
 			}, nil
 		}
 	}
