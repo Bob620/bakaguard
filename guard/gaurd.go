@@ -72,6 +72,12 @@ func (guard *Guard) CleanupPeers() error {
 		uuid := peerList[keyString]
 		if uuid != "" {
 			delete(peerList, keyString)
+		} else {
+			_ = guard.SetRedisPeer(CreateRedisPeer(
+				keyString,
+				"",
+				"",
+			))
 		}
 	}
 
