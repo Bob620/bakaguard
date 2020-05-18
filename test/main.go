@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -22,12 +23,16 @@ func main() {
 	if rpcErr != nil {
 		log.Fatal(rpcErr)
 	}
-	fmt.Println(data)
+
+	str, _ := json.Marshal(data)
+	fmt.Println(str)
 
 	data, rpcErr = rpcClient.CallMethod(nil, "peers.all", parameters.NewParametersByName([]parameters.Param{}))
 	if rpcErr != nil {
 		log.Fatal(rpcErr)
 	}
-	fmt.Println(data)
+
+	str, _ = json.Marshal(data)
+	fmt.Println(str)
 
 }
