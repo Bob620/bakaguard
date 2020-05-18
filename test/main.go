@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	conn, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
+	conn, _, err := websocket.DefaultDialer.Dial("localhost:6065", nil)
 	if err != nil {
 		log.Fatal("dial:", err)
 	}
@@ -24,7 +24,7 @@ func main() {
 	}
 	fmt.Println(data)
 
-	data, rpcErr = rpcClient.CallMethod(nil, "admin.auth", parameters.NewParametersByName([]parameters.Param{}))
+	data, rpcErr = rpcClient.CallMethod(nil, "peers.all", parameters.NewParametersByName([]parameters.Param{}))
 	if rpcErr != nil {
 		log.Fatal(rpcErr)
 	}
