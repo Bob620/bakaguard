@@ -28,7 +28,7 @@ type Peer struct {
 	Name          string `json:"name"`
 	Description   string `json:"description"`
 	PublicKey     string
-	AllowedIPs    []net.IPNet `json:"allowedIPs"`
-	KeepAlive     time.Duration
-	LastHandshake time.Time
+	AllowedIPs    []net.IPNet   `json:"allowedIPs"`
+	KeepAlive     time.Duration `json:"keepAlive"`
+	LastHandshake time.Time     `json:"lastSeen"`
 }

@@ -96,7 +96,6 @@ func (guard *Guard) UpdatePeer(peer *Peer) (err error) {
 	})
 
 	if err != nil {
-		fmt.Println(err)
 		return fmt.Errorf("unable to update peer configuration")
 	}
 
@@ -107,7 +106,6 @@ func (guard *Guard) UpdatePeer(peer *Peer) (err error) {
 		PublicKey:   peer.PublicKey,
 	})
 	if err != nil {
-		fmt.Println(err)
 		return fmt.Errorf("unable to update peer configuration")
 	}
 
@@ -170,13 +168,11 @@ func (guard *Guard) DeleteRedisPeer(uuid string, publicKey string) error {
 }
 
 func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
-	data, err := guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, peer.Uuid), peer.Uuid)
-	fmt.Println(redis.String(data, nil))
+	_, err := guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, peer.Uuid), peer.Uuid)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("ahhh")
 	_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:name", redisRoot, redisPeer, peer.Uuid), peer.Name)
 	if err != nil {
 		return err
