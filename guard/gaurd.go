@@ -170,11 +170,13 @@ func (guard *Guard) DeleteRedisPeer(uuid string, publicKey string) error {
 }
 
 func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
-	_, err := guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, peer.Uuid), peer.Uuid)
+	data, err := guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, peer.Uuid), peer.Uuid)
+	fmt.Println(redis.String(data, nil))
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("ahhh")
 	_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:name", redisRoot, redisPeer, peer.Uuid), peer.Name)
 	if err != nil {
 		return err
@@ -191,12 +193,12 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 	}
 
 	_, err = guard.redisConn.Do("sadd", fmt.Sprintf("%s:%s", redisRoot, redisPeer), peer.Uuid)
-	if err != nil && err != redis.ErrNil {
+	if err != nil {
 		return err
 	}
 
 	_, err = guard.redisConn.Do("sadd", fmt.Sprintf("%s:%s", redisRoot, peerSearchPublicKey), peer.PublicKey)
-	if err != nil && err != redis.ErrNil {
+	if err != nil {
 		return err
 	}
 
