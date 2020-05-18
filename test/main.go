@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	conn, _, err := websocket.DefaultDialer.Dial("localhost:6065", nil)
+	conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:6065", nil)
 	if err != nil {
 		log.Fatal("dial:", err)
 	}
