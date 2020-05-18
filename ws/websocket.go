@@ -2,6 +2,7 @@ package ws
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/bob620/baka-rpc-go/parameters"
@@ -23,38 +24,38 @@ func CreateWs(guard *guard.Guard, state *state.State) WS {
 	ws := WS{rpcClient}
 
 	rpcClient.RegisterMethod(
-		"admin.auth",
+		"auth.admin",
 		[]parameters.Param{
 			&parameters.StringParam{Name: "password", IsRequired: true},
 		}, func(params map[string]parameters.Param) (returnMessage json.RawMessage, err error) {
 			if state.HasAdminAuth() {
-				return []byte(`{"auth": true}`), nil
+				return json.Marshal(Auth{true})
 			}
 
 			password, _ := params["password"].(*parameters.StringParam).GetString()
 			if state.TryAdminPassword(password) {
-				returnMessage = []byte(`{"auth": true}`)
+				returnMessage, err = json.Marshal(Auth{true})
 			} else {
-				returnMessage = []byte(`{"auth": false}`)
+				returnMessage, err = json.Marshal(Auth{false})
 			}
 
 			return returnMessage, err
 		})
 
 	rpcClient.RegisterMethod(
-		"user.auth",
+		"auth.user",
 		[]parameters.Param{
 			&parameters.StringParam{Name: "password", IsRequired: true},
 		}, func(params map[string]parameters.Param) (returnMessage json.RawMessage, err error) {
 			if state.HasUserAuth() {
-				return []byte(`{"auth": true}`), nil
+				return json.Marshal(Auth{true})
 			}
 
 			password, _ := params["password"].(*parameters.StringParam).GetString()
 			if state.TryUserPassword(password) {
-				returnMessage = []byte(`{"auth": true}`)
+				returnMessage, err = json.Marshal(Auth{true})
 			} else {
-				returnMessage = []byte(`{"auth": false}`)
+				returnMessage, err = json.Marshal(Auth{false})
 			}
 
 			return returnMessage, err
@@ -66,7 +67,7 @@ func CreateWs(guard *guard.Guard, state *state.State) WS {
 			&parameters.StringParam{Name: "uuid", IsRequired: true},
 		}, func(params map[string]parameters.Param) (returnMessage json.RawMessage, err error) {
 			if !state.HasAdminAuth() {
-				return []byte(`{"error": "Please authenticate as admin"}`), nil
+				return nil, fmt.Errorf("please authenticate as admin")
 			}
 
 			uuid, _ := params["uuid"].(*parameters.StringParam).GetString()
@@ -82,7 +83,7 @@ func CreateWs(guard *guard.Guard, state *state.State) WS {
 		[]parameters.Param{},
 		func(params map[string]parameters.Param) (returnMessage json.RawMessage, err error) {
 			if !state.HasAdminAuth() {
-				return []byte(`{"error": "Please authenticate as admin"}`), nil
+				return nil, fmt.Errorf("please authenticate as admin")
 			}
 
 			peers, err := guard.GetPeers()
@@ -90,6 +91,42 @@ func CreateWs(guard *guard.Guard, state *state.State) WS {
 				return nil, err
 			}
 			return json.Marshal(peers)
+		})
+
+	rpcClient.RegisterMethod(
+		"peers.update",
+		[]parameters.Param{
+			&parameters.StringParam{Name: "uuid", IsRequired: true},
+			&parameters.StringParam{Name: "name"},
+			&parameters.StringParam{Name: "description"},
+		},
+		func(params map[string]parameters.Param) (returnMessage json.RawMessage, err error) {
+			if !state.HasAdminAuth() {
+				return nil, fmt.Errorf("please authenticate as admin")
+			}
+
+			uuid, _ := params["uuid"].(*parameters.StringParam).GetString()
+			name, _ := params["name"].(*parameters.StringParam).GetString()
+			desc, _ := params["description"].(*parameters.StringParam).GetString()
+
+			peer, err := guard.GetWgPeer(uuid)
+			if err != nil {
+				return nil, err
+			}
+
+			if name != "" {
+				peer.Name = name
+			}
+
+			if desc != "" {
+				peer.Description = desc
+			}
+
+			err = guard.UpdatePeer(peer)
+			if err != nil {
+				return nil, err
+			}
+			return json.Marshal(peer)
 		})
 
 	return ws
