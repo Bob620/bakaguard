@@ -3,7 +3,9 @@ package ws
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"time"
 
 	"github.com/bob620/baka-rpc-go/parameters"
 	"github.com/bob620/baka-rpc-go/rpc"
@@ -99,6 +101,8 @@ func CreateWs(guard *guard.Guard, state *state.State) WS {
 			&parameters.StringParam{Name: "uuid", IsRequired: true},
 			&parameters.StringParam{Name: "name"},
 			&parameters.StringParam{Name: "description"},
+			&parameters.IntParam{Name: "keepAlive", Default: -1},
+			&IPNetParam{Name: "allowedIPs", Default: []net.IPNet{}},
 		},
 		func(params map[string]parameters.Param) (returnMessage json.RawMessage, err error) {
 			if !state.HasAdminAuth() {
@@ -108,6 +112,8 @@ func CreateWs(guard *guard.Guard, state *state.State) WS {
 			uuid, _ := params["uuid"].(*parameters.StringParam).GetString()
 			name, _ := params["name"].(*parameters.StringParam).GetString()
 			desc, _ := params["description"].(*parameters.StringParam).GetString()
+			keepAlive, _ := params["keepAlive"].(*parameters.IntParam).GetInt()
+			allowedIPs, _ := params["allowedIPs"].(*IPNetParam).GetIPNet()
 
 			peer, err := guard.GetWgPeer(uuid)
 			if err != nil {
@@ -121,6 +127,14 @@ func CreateWs(guard *guard.Guard, state *state.State) WS {
 
 			if desc != "" {
 				peer.Description = desc
+			}
+
+			if keepAlive >= 0 {
+				peer.KeepAlive = time.Second * time.Duration(keepAlive)
+			}
+
+			if len(allowedIPs) > 0 {
+				peer.AllowedIPs = allowedIPs
 			}
 
 			err = guard.UpdatePeer(peer)
