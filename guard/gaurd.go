@@ -96,6 +96,7 @@ func (guard *Guard) UpdatePeer(peer *Peer) (err error) {
 	})
 
 	if err != nil {
+		fmt.Println(err)
 		return fmt.Errorf("unable to update peer configuration")
 	}
 
@@ -106,6 +107,7 @@ func (guard *Guard) UpdatePeer(peer *Peer) (err error) {
 		PublicKey:   peer.PublicKey,
 	})
 	if err != nil {
+		fmt.Println(err)
 		return fmt.Errorf("unable to update peer configuration")
 	}
 
