@@ -2,6 +2,8 @@ package guard
 
 import (
 	"fmt"
+	"net"
+	"time"
 
 	"github.com/gomodule/redigo/redis"
 	uuid "github.com/nu7hatch/gouuid"
@@ -15,7 +17,7 @@ const redisRoot = "bakaguard"
 const redisPeer = "peers"
 const peerSearchPublicKey = "search:publicKey"
 
-func CreateRedisPeer(publicKey string, name string, description string) *RedisPeer {
+func CreateRedisPeer(publicKey string, name string, description string, storage map[string]string) *RedisPeer {
 	id, _ := uuid.NewV4()
 
 	return &RedisPeer{
@@ -23,6 +25,22 @@ func CreateRedisPeer(publicKey string, name string, description string) *RedisPe
 		Name:        name,
 		Description: description,
 		PublicKey:   publicKey,
+		Storage:     storage,
+	}
+}
+
+func CreatePeer(publicKey string, name string, description string, keepAlive time.Duration, allowedIPs []net.IPNet, storage map[string]string) *Peer {
+	id, _ := uuid.NewV4()
+
+	return &Peer{
+		Uuid:          id.String(),
+		Name:          name,
+		Description:   description,
+		PublicKey:     publicKey,
+		Storage:       storage,
+		AllowedIPs:    allowedIPs,
+		KeepAlive:     keepAlive,
+		LastHandshake: time.Time{},
 	}
 }
 
@@ -55,6 +73,7 @@ func (guard *Guard) CleanupPeers() error {
 				keyString,
 				"",
 				"",
+				guard.FormatUpdateStorage(nil, nil),
 			))
 		}
 	}
@@ -64,6 +83,36 @@ func (guard *Guard) CleanupPeers() error {
 	}
 
 	return nil
+}
+
+func (guard *Guard) FormatUpdateStorage(oldStorage map[string]string, newStorage map[string]interface{}) (storage map[string]string) {
+	storage = make(map[string]string, len(guard.config.Storage))
+
+	for _, typeInfo := range guard.config.Storage {
+		var oldValue string
+		var newValue interface{}
+
+		if oldStorage != nil {
+			oldValue = oldStorage[typeInfo.Key]
+		}
+		if newStorage != nil {
+			newValue = newStorage[typeInfo.Key]
+		}
+
+		if newValue != nil {
+			storage[typeInfo.Key] = newValue.(string)
+			continue
+		}
+
+		if oldValue != "" {
+			storage[typeInfo.Key] = oldValue
+			continue
+		}
+
+		storage[typeInfo.Key] = config.GetDefaultOf(typeInfo.Type)
+	}
+
+	return
 }
 
 func (guard *Guard) UpdatePeer(peer *Peer) (err error) {
@@ -104,9 +153,92 @@ func (guard *Guard) UpdatePeer(peer *Peer) (err error) {
 		Name:        peer.Name,
 		Description: peer.Description,
 		PublicKey:   peer.PublicKey,
+		Storage:     peer.Storage,
 	})
 	if err != nil {
 		return fmt.Errorf("unable to update peer configuration")
+	}
+
+	return
+}
+
+func (guard *Guard) SetPeer(peer *Peer) (err error) {
+	if peer.Uuid == "" {
+		return fmt.Errorf("no uuid provided")
+	}
+
+	publicKey, err := wgtypes.ParseKey(peer.PublicKey)
+	if err != nil {
+		return fmt.Errorf("unable to verify public key")
+	}
+
+	err = guard.wg.ConfigureDevice(guard.config.Interface.Name, wgtypes.Config{
+		PrivateKey:   nil,
+		ListenPort:   nil,
+		FirewallMark: nil,
+		ReplacePeers: false,
+		Peers: []wgtypes.PeerConfig{
+			{
+				PublicKey:                   publicKey,
+				Remove:                      false,
+				UpdateOnly:                  false,
+				PresharedKey:                nil,
+				Endpoint:                    nil,
+				PersistentKeepaliveInterval: &peer.KeepAlive,
+				ReplaceAllowedIPs:           true,
+				AllowedIPs:                  peer.AllowedIPs,
+			},
+		},
+	})
+
+	if err != nil {
+		return fmt.Errorf("unable to update peer configuration")
+	}
+
+	err = guard.SetRedisPeer(&RedisPeer{
+		Uuid:        peer.Uuid,
+		Name:        peer.Name,
+		Description: peer.Description,
+		PublicKey:   peer.PublicKey,
+		Storage:     peer.Storage,
+	})
+	if err != nil {
+		return fmt.Errorf("unable to update peer configuration")
+	}
+
+	return
+}
+
+func (guard *Guard) DeletePeer(uuid string) (err error) {
+	peer, err := guard.GetWgPeer(uuid)
+	if err != nil {
+		return
+	}
+
+	publicKey, err := wgtypes.ParseKey(peer.PublicKey)
+	if err != nil {
+		return
+	}
+
+	err = guard.wg.ConfigureDevice(guard.config.Interface.Name, wgtypes.Config{
+		PrivateKey:   nil,
+		ListenPort:   nil,
+		FirewallMark: nil,
+		ReplacePeers: false,
+		Peers: []wgtypes.PeerConfig{
+			{
+				PublicKey: publicKey,
+				Remove:    true,
+			},
+		},
+	})
+	if err != nil {
+		return
+	}
+
+	err = guard.DeleteRedisPeer(uuid, peer.PublicKey)
+	if err != nil {
+		return
 	}
 
 	return
@@ -188,6 +320,16 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 		return err
 	}
 
+	var redisData []interface{}
+	for key, value := range peer.Storage {
+		redisData = append(redisData, key, value)
+	}
+
+	_, err = guard.redisConn.Do("hset", fmt.Sprintf("%s:%s:%s:info", redisRoot, redisPeer, peer.Uuid), redisData)
+	if err != nil {
+		return err
+	}
+
 	_, err = guard.redisConn.Do("sadd", fmt.Sprintf("%s:%s", redisRoot, redisPeer), peer.Uuid)
 	if err != nil {
 		return err
@@ -230,6 +372,7 @@ func (guard *Guard) GetRedisPeer(id string) (*RedisPeer, error) {
 		Name:        "",
 		Description: "",
 		PublicKey:   "",
+		Storage:     map[string]string{},
 	}
 	data, err := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, id)))
 	if err != nil {
@@ -254,6 +397,12 @@ func (guard *Guard) GetRedisPeer(id string) (*RedisPeer, error) {
 		return nil, err
 	}
 	peer.PublicKey = data
+
+	info, err := redis.StringMap(guard.redisConn.Do("hgetall", fmt.Sprintf("%s:%s:%s:info", redisRoot, redisPeer, peer.Uuid)))
+	if err != nil {
+		return nil, err
+	}
+	peer.Storage = info
 
 	return &peer, nil
 }
@@ -280,6 +429,7 @@ func (guard *Guard) GetWgPeer(id string) (*Peer, error) {
 				Name:          redisPeer.Name,
 				Description:   redisPeer.Description,
 				PublicKey:     redisPeer.PublicKey,
+				Storage:       redisPeer.Storage,
 				AllowedIPs:    peer.AllowedIPs,
 				KeepAlive:     peer.PersistentKeepaliveInterval,
 				LastHandshake: peer.LastHandshakeTime,

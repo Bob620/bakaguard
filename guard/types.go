@@ -21,6 +21,7 @@ type RedisPeer struct {
 	Name        string
 	Description string
 	PublicKey   string
+	Storage     map[string]string
 }
 
 type Peer struct {
@@ -28,7 +29,8 @@ type Peer struct {
 	Name          string `json:"name"`
 	Description   string `json:"description"`
 	PublicKey     string
-	AllowedIPs    []net.IPNet   `json:"allowedIPs"`
-	KeepAlive     time.Duration `json:"keepAlive"`
-	LastHandshake time.Time     `json:"lastSeen"`
+	AllowedIPs    []net.IPNet       `json:"allowedIPs"`
+	KeepAlive     time.Duration     `json:"keepAlive"`
+	LastHandshake time.Time         `json:"lastSeen"`
+	Storage       map[string]string `json:"storage"`
 }
