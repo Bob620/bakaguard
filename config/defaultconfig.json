@@ -9,5 +9,35 @@
   },
   "redis": {
     "port": 6379
-  }
+  },
+  "storage": [
+    {
+      "key": "mac",
+      "type": "string"
+    },
+    {
+      "key": "remoteKey",
+      "type": "string"
+    },
+    {
+      "key": "expectedAddress",
+      "type": "string"
+    },
+    {
+      "key": "networkJack",
+      "type": "string"
+    },
+    {
+      "key": "wifiPossible",
+      "type": "bool"
+    },
+    {
+      "key": "type",
+      "type": "string"
+    },
+    {
+      "key": "physicalLocation",
+      "type": "string"
+    }
+  ]
 }

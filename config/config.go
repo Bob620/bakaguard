@@ -23,10 +23,16 @@ type Interface struct {
 	Name string `json:"name"`
 }
 
+type StorageType struct {
+	Key  string `json:"key"`
+	Type string `json:"type"`
+}
+
 type Config struct {
-	Interface *Interface `json:"interface"`
-	Websocket *Websocket `json:"ws"`
-	Redis     *Redis     `json:"redis"`
+	Interface *Interface     `json:"interface"`
+	Websocket *Websocket     `json:"ws"`
+	Redis     *Redis         `json:"redis"`
+	Storage   []*StorageType `json:"storage"`
 }
 
 func LoadConfiguration() (conf Config) {
@@ -39,4 +45,15 @@ func LoadConfiguration() (conf Config) {
 	jsonParser := json.NewDecoder(configFile)
 	jsonParser.Decode(&conf)
 	return
+}
+
+func GetDefaultOf(storageType string) string {
+	switch storageType {
+	case "string":
+		return ""
+	case "bool":
+		return "false"
+	default:
+		return ""
+	}
 }
