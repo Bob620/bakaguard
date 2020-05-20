@@ -365,9 +365,24 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 		return err
 	}
 
-	oldGroup, err := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, peer.Uuid)))
-	if err != nil {
+	data, err := guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, peer.Uuid))
+	if err != nil && err != redis.ErrNil {
 		return err
+	}
+
+	if err != redis.ErrNil {
+		oldGroup, err := redis.String(data, nil)
+
+		if err != nil {
+			return err
+		}
+
+		if oldGroup != "" {
+			_, err = guard.redisConn.Do("srem", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, oldGroup), peer.Uuid)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, peer.Uuid), peer.Group)
@@ -381,11 +396,6 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 	}
 
 	_, err = guard.redisConn.Do("hset", fmt.Sprintf("%s:%s:%s:info", redisRoot, redisPeer, peer.Uuid), redisData)
-	if err != nil {
-		return err
-	}
-
-	_, err = guard.redisConn.Do("srem", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, oldGroup), peer.Uuid)
 	if err != nil {
 		return err
 	}
