@@ -171,7 +171,7 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 			_, ok := validGroups[peer.Group]
 			_, adminOk := validGroups["*"]
 
-			if ok || adminOk {
+			if !ok || !adminOk {
 				return nil, fmt.Errorf("peer not found")
 			}
 
