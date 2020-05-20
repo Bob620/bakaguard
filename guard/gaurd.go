@@ -497,7 +497,7 @@ func (guard *Guard) GetWgPeer(id string) (*Peer, error) {
 
 	redisPeer, err := guard.GetRedisPeer(id)
 	if err != nil || redisPeer.Uuid == "" {
-		if err == nil {
+		if err == nil || err == redis.ErrNil {
 			err = fmt.Errorf("unable to find peer")
 		}
 		return nil, err
