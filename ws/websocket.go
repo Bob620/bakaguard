@@ -127,7 +127,7 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 			_, ok := validGroups[group]
 			_, adminOk := validGroups["*"]
 
-			if !ok || !adminOk {
+			if !ok && !adminOk {
 				return json.Marshal(map[string]*Guard.Peer{})
 			}
 
@@ -171,7 +171,8 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 			_, ok := validGroups[peer.Group]
 			_, adminOk := validGroups["*"]
 
-			if !ok || !adminOk {
+			if !ok && !adminOk {
+				fmt.Println("peer not found")
 				return nil, fmt.Errorf("peer not found")
 			}
 
@@ -232,7 +233,7 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 			_, ok := validGroups[group]
 			_, adminOk := validGroups["*"]
 
-			if !ok || !adminOk {
+			if !ok && !adminOk {
 				return nil, fmt.Errorf("please authenticate")
 			}
 
@@ -281,7 +282,7 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 			_, ok := validGroups[peer.Group]
 			_, adminOk := validGroups["*"]
 
-			if !ok || !adminOk {
+			if !ok && !adminOk {
 				return nil, fmt.Errorf("please authenticate")
 			}
 
