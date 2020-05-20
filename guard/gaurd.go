@@ -44,7 +44,7 @@ func CreatePeer(publicKey, group, name, description string, keepAlive time.Durat
 		AllowedIPs:     allowedIPs,
 		KeepAlive:      keepAlive,
 		LastHandshake:  time.Time{},
-		LastExternalIp: net.UDPAddr{},
+		LastExternalIp: "",
 	}
 }
 
@@ -509,7 +509,7 @@ func (guard *Guard) GetWgPeer(id string) (*Peer, error) {
 				AllowedIPs:     peer.AllowedIPs,
 				KeepAlive:      peer.PersistentKeepaliveInterval,
 				LastHandshake:  peer.LastHandshakeTime,
-				LastExternalIp: *peer.Endpoint,
+				LastExternalIp: peer.Endpoint.IP.String(),
 			}, nil
 		}
 	}

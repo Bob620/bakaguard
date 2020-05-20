@@ -34,6 +34,6 @@ type Peer struct {
 	AllowedIPs     []net.IPNet       `json:"allowedIPs"`
 	KeepAlive      time.Duration     `json:"keepAlive"`
 	LastHandshake  time.Time         `json:"lastSeen"`
-	LastExternalIp net.UDPAddr       `json:"lastExternalIp"`
+	LastExternalIp string            `json:"lastExternalIp"`
 	Storage        map[string]string `json:"storage"`
 }
