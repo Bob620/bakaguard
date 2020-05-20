@@ -26,14 +26,14 @@ type RedisPeer struct {
 }
 
 type Peer struct {
-	Uuid           string `json:"uuid"`
-	Group          string `json:"group"`
-	Name           string `json:"name"`
-	Description    string `json:"description"`
-	PublicKey      string
-	AllowedIPs     []net.IPNet       `json:"allowedIPs"`
-	KeepAlive      time.Duration     `json:"keepAlive"`
-	LastHandshake  time.Time         `json:"lastSeen"`
-	LastExternalIp string            `json:"lastExternalIp"`
-	Storage        map[string]string `json:"storage"`
+	Uuid          string `json:"uuid"`
+	Group         string `json:"group"`
+	Name          string `json:"name"`
+	Description   string `json:"description"`
+	PublicKey     string
+	AllowedIPs    []net.IPNet       `json:"allowedIPs"`
+	KeepAlive     time.Duration     `json:"keepAlive"`
+	LastHandshake time.Time         `json:"lastSeen"`
+	LastEndpoint  string            `json:"lastExternalIp"`
+	Storage       map[string]string `json:"storage"`
 }
