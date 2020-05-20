@@ -35,15 +35,16 @@ func CreatePeer(publicKey, group, name, description string, keepAlive time.Durat
 	id, _ := uuid.NewV4()
 
 	return &Peer{
-		Uuid:          id.String(),
-		Group:         group,
-		Name:          name,
-		Description:   description,
-		PublicKey:     publicKey,
-		Storage:       storage,
-		AllowedIPs:    allowedIPs,
-		KeepAlive:     keepAlive,
-		LastHandshake: time.Time{},
+		Uuid:           id.String(),
+		Group:          group,
+		Name:           name,
+		Description:    description,
+		PublicKey:      publicKey,
+		Storage:        storage,
+		AllowedIPs:     allowedIPs,
+		KeepAlive:      keepAlive,
+		LastHandshake:  time.Time{},
+		LastExternalIp: net.UDPAddr{},
 	}
 }
 
@@ -499,15 +500,16 @@ func (guard *Guard) GetWgPeer(id string) (*Peer, error) {
 	for _, peer := range device.Peers {
 		if peer.PublicKey == redisKey {
 			return &Peer{
-				Uuid:          redisPeer.Uuid,
-				Group:         redisPeer.Group,
-				Name:          redisPeer.Name,
-				Description:   redisPeer.Description,
-				PublicKey:     redisPeer.PublicKey,
-				Storage:       redisPeer.Storage,
-				AllowedIPs:    peer.AllowedIPs,
-				KeepAlive:     peer.PersistentKeepaliveInterval,
-				LastHandshake: peer.LastHandshakeTime,
+				Uuid:           redisPeer.Uuid,
+				Group:          redisPeer.Group,
+				Name:           redisPeer.Name,
+				Description:    redisPeer.Description,
+				PublicKey:      redisPeer.PublicKey,
+				Storage:        redisPeer.Storage,
+				AllowedIPs:     peer.AllowedIPs,
+				KeepAlive:      peer.PersistentKeepaliveInterval,
+				LastHandshake:  peer.LastHandshakeTime,
+				LastExternalIp: *peer.Endpoint,
 			}, nil
 		}
 	}
