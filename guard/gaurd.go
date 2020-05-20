@@ -381,11 +381,13 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 	}
 
 	var redisData []interface{}
+	redisData = append(redisData, fmt.Sprintf("%s:%s:%s:info", redisRoot, redisPeer, peer.Uuid))
+
 	for key, value := range peer.Storage {
 		redisData = append(redisData, key, value)
 	}
 
-	_, err = guard.redisConn.Do("hset", fmt.Sprintf("%s:%s:%s:info", redisRoot, redisPeer, peer.Uuid), redisData)
+	_, err = guard.redisConn.Do("hset", redisData...)
 	if err != nil {
 		return err
 	}
