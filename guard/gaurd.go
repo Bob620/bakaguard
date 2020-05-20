@@ -16,12 +16,14 @@ import (
 const redisRoot = "bakaguard"
 const redisPeer = "peers"
 const peerSearchPublicKey = "search:publicKey"
+const redisGroups = "groups"
 
-func CreateRedisPeer(publicKey string, name string, description string, storage map[string]string) *RedisPeer {
+func CreateRedisPeer(publicKey, group, name, description string, storage map[string]string) *RedisPeer {
 	id, _ := uuid.NewV4()
 
 	return &RedisPeer{
 		Uuid:        id.String(),
+		Group:       group,
 		Name:        name,
 		Description: description,
 		PublicKey:   publicKey,
@@ -29,11 +31,12 @@ func CreateRedisPeer(publicKey string, name string, description string, storage 
 	}
 }
 
-func CreatePeer(publicKey string, name string, description string, keepAlive time.Duration, allowedIPs []net.IPNet, storage map[string]string) *Peer {
+func CreatePeer(publicKey, group, name, description string, keepAlive time.Duration, allowedIPs []net.IPNet, storage map[string]string) *Peer {
 	id, _ := uuid.NewV4()
 
 	return &Peer{
 		Uuid:          id.String(),
+		Group:         group,
 		Name:          name,
 		Description:   description,
 		PublicKey:     publicKey,
@@ -50,6 +53,24 @@ func CreateGuard(conf config.Config, wg *wgctrl.Client, redisConn redis.Conn) *G
 		wg:        wg,
 		redisConn: redisConn,
 	}
+}
+
+func (guard *Guard) GetGroupPeers(group string) (peers map[string]*Peer, err error) {
+	uuids, err := guard.GetRedisPeerGroup(group)
+	if err != nil {
+		return nil, err
+	}
+
+	peers = make(map[string]*Peer, len(uuids))
+
+	for _, peerUuid := range uuids {
+		peer, err := guard.GetWgPeer(peerUuid)
+		if err == nil {
+			peers[peerUuid] = peer
+		}
+	}
+
+	return
 }
 
 func (guard *Guard) CleanupPeers() error {
@@ -71,6 +92,7 @@ func (guard *Guard) CleanupPeers() error {
 		} else {
 			_ = guard.SetRedisPeer(CreateRedisPeer(
 				keyString,
+				"",
 				"",
 				"",
 				guard.FormatUpdateStorage(nil, nil),
@@ -150,6 +172,7 @@ func (guard *Guard) UpdatePeer(peer *Peer) (err error) {
 
 	err = guard.SetRedisPeer(&RedisPeer{
 		Uuid:        peer.Uuid,
+		Group:       peer.Group,
 		Name:        peer.Name,
 		Description: peer.Description,
 		PublicKey:   peer.PublicKey,
@@ -197,6 +220,7 @@ func (guard *Guard) SetPeer(peer *Peer) (err error) {
 
 	err = guard.SetRedisPeer(&RedisPeer{
 		Uuid:        peer.Uuid,
+		Group:       peer.Group,
 		Name:        peer.Name,
 		Description: peer.Description,
 		PublicKey:   peer.PublicKey,
@@ -245,17 +269,23 @@ func (guard *Guard) DeletePeer(uuid string) (err error) {
 }
 
 func (guard *Guard) GetRedisPeerMap() (peers map[string]string, err error) {
-	peers = make(map[string]string)
-
 	keys, err := redis.Strings(guard.redisConn.Do("smembers", fmt.Sprintf("%s:%s", redisRoot, peerSearchPublicKey)))
 	if err != nil {
 		return
 	}
 
+	peers = make(map[string]string, len(keys))
+
 	for _, key := range keys {
 		uuid, _ := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s", redisRoot, peerSearchPublicKey, key)))
 		peers[key] = uuid
 	}
+
+	return
+}
+
+func (guard *Guard) GetRedisPeerGroup(group string) (peers []string, err error) {
+	peers, err = redis.Strings(guard.redisConn.Do("smembers", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, group)))
 
 	return
 }
@@ -271,6 +301,16 @@ func (guard *Guard) DeleteRedisPeer(uuid string, publicKey string) error {
 		return err
 	}
 
+	oldGroup, err := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, uuid)))
+	if err != nil {
+		return err
+	}
+
+	_, err = guard.redisConn.Do("srem", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, oldGroup), uuid)
+	if err != nil {
+		return err
+	}
+
 	_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, uuid))
 	if err != nil {
 		return err
@@ -282,6 +322,11 @@ func (guard *Guard) DeleteRedisPeer(uuid string, publicKey string) error {
 	}
 
 	_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:desc", redisRoot, redisPeer, uuid))
+	if err != nil {
+		return err
+	}
+
+	_, err = redis.String(guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, uuid)))
 	if err != nil {
 		return err
 	}
@@ -320,12 +365,32 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 		return err
 	}
 
+	oldGroup, err := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, peer.Uuid)))
+	if err != nil {
+		return err
+	}
+
+	_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, peer.Uuid), peer.Group)
+	if err != nil {
+		return err
+	}
+
 	var redisData []interface{}
 	for key, value := range peer.Storage {
 		redisData = append(redisData, key, value)
 	}
 
 	_, err = guard.redisConn.Do("hset", fmt.Sprintf("%s:%s:%s:info", redisRoot, redisPeer, peer.Uuid), redisData)
+	if err != nil {
+		return err
+	}
+
+	_, err = guard.redisConn.Do("srem", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, oldGroup), peer.Uuid)
+	if err != nil {
+		return err
+	}
+
+	_, err = guard.redisConn.Do("sadd", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, peer.Group), peer.Uuid)
 	if err != nil {
 		return err
 	}
@@ -349,12 +414,12 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 }
 
 func (guard *Guard) GetPeers() (peers map[string]*Peer, err error) {
-	peers = make(map[string]*Peer)
-
 	peerMap, err := guard.GetRedisPeerMap()
 	if err != nil {
 		return nil, err
 	}
+
+	peers = make(map[string]*Peer, len(peerMap))
 
 	for _, peerUuid := range peerMap {
 		peer, err := guard.GetWgPeer(peerUuid)
@@ -369,6 +434,7 @@ func (guard *Guard) GetPeers() (peers map[string]*Peer, err error) {
 func (guard *Guard) GetRedisPeer(id string) (*RedisPeer, error) {
 	peer := RedisPeer{
 		Uuid:        "",
+		Group:       "",
 		Name:        "",
 		Description: "",
 		PublicKey:   "",
@@ -398,6 +464,12 @@ func (guard *Guard) GetRedisPeer(id string) (*RedisPeer, error) {
 	}
 	peer.PublicKey = data
 
+	data, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, id)))
+	if err != nil {
+		return nil, err
+	}
+	peer.Group = data
+
 	info, err := redis.StringMap(guard.redisConn.Do("hgetall", fmt.Sprintf("%s:%s:%s:info", redisRoot, redisPeer, peer.Uuid)))
 	if err != nil {
 		return nil, err
@@ -426,6 +498,7 @@ func (guard *Guard) GetWgPeer(id string) (*Peer, error) {
 		if peer.PublicKey == redisKey {
 			return &Peer{
 				Uuid:          redisPeer.Uuid,
+				Group:         redisPeer.Group,
 				Name:          redisPeer.Name,
 				Description:   redisPeer.Description,
 				PublicKey:     redisPeer.PublicKey,

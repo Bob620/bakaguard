@@ -18,6 +18,7 @@ type Guard struct {
 
 type RedisPeer struct {
 	Uuid        string
+	Group       string
 	Name        string
 	Description string
 	PublicKey   string
@@ -26,6 +27,7 @@ type RedisPeer struct {
 
 type Peer struct {
 	Uuid          string `json:"uuid"`
+	Group         string `json:"group"`
 	Name          string `json:"name"`
 	Description   string `json:"description"`
 	PublicKey     string
