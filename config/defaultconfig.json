@@ -5,7 +5,23 @@
   "ws": {
     "port": 6065,
     "adminPassword": "",
-    "userPassword": ""
+    "users": {
+      "user": {
+        "password": "",
+        "groups": {
+          "test": ["peers.add", "peers.update", "peers.get", "peers.getGroup"]
+        }
+      }
+    },
+    "groups": {
+      "test": {
+        "description": "Basic testing network",
+        "network": {
+          "ip": "10.0.0.0",
+          "mask": [255, 255, 255, 0]
+        }
+      }
+    }
   },
   "redis": {
     "port": 6379

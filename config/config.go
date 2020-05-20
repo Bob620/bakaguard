@@ -13,10 +13,26 @@ type Redis struct {
 	Database int `json:"db"`
 }
 
+type WSUsers struct {
+	Password string              `json:"password"`
+	Groups   map[string][]string `json:"groups"`
+}
+
+type Network struct {
+	IP   string  `json:"ip"`
+	Mask [4]byte `json:"mask"`
+}
+
+type WSGroup struct {
+	Description string  `json:"description"`
+	Network     Network `json:"network"`
+}
+
 type Websocket struct {
-	Port          int    `json:"port"`
-	AdminPassword string `json:"adminPassword"`
-	UserPassword  string `json:"userPassword"`
+	Port          int                `json:"port"`
+	AdminPassword string             `json:"adminPassword"`
+	Users         map[string]WSUsers `json:"users"`
+	Groups        map[string]WSGroup `json:"groups"`
 }
 
 type Interface struct {
