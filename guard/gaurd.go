@@ -367,6 +367,7 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 
 	data, err := guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, peer.Uuid))
 	if err != nil && err != redis.ErrNil {
+		fmt.Println(err)
 		return err
 	}
 
