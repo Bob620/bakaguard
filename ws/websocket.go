@@ -167,6 +167,7 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 
 			peer, err := guard.GetWgPeer(uuid)
 			if err != nil {
+				fmt.Print("1: ")
 				fmt.Println(err)
 				return nil, err
 			}
@@ -201,6 +202,7 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 
 			err = guard.UpdatePeer(peer)
 			if err != nil {
+				fmt.Print("2: ")
 				fmt.Println(err)
 				return nil, err
 			}
