@@ -172,6 +172,8 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 			fmt.Println(allowedIPs)
 			fmt.Println(storage)
 
+			fmt.Println("Looking up peer")
+
 			peer, err := guard.GetWgPeer(uuid)
 			if err != nil {
 				fmt.Print("1: ")
