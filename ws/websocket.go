@@ -165,6 +165,13 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 			allowedIPs, _ := params["allowedIPs"].(*IPNetParam).GetIPNet()
 			storage, _ := params["storage"].(*InterfaceParam).GetInterface()
 
+			fmt.Println(uuid)
+			fmt.Println(name)
+			fmt.Println(desc)
+			fmt.Println(keepAlive)
+			fmt.Println(allowedIPs)
+			fmt.Println(storage)
+
 			peer, err := guard.GetWgPeer(uuid)
 			if err != nil {
 				fmt.Print("1: ")
@@ -200,12 +207,14 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 				peer.Storage = guard.FormatUpdateStorage(peer.Storage, storage)
 			}
 
+			fmt.Println("Attempting to update peer...")
 			err = guard.UpdatePeer(peer)
 			if err != nil {
 				fmt.Print("2: ")
 				fmt.Println(err)
 				return nil, err
 			}
+			fmt.Println("Peer updated")
 			return json.Marshal(peer)
 		})
 
