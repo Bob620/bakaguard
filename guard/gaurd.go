@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/gomodule/redigo/redis"
-	uuid "github.com/nu7hatch/gouuid"
+	Uuid "github.com/nu7hatch/gouuid"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 
@@ -20,7 +20,7 @@ const peerSearchPublicKey = "search:publicKey"
 const redisGroups = "groups"
 
 func CreateRedisPeer(publicKey, group, name, description string, storage map[string]string) *RedisPeer {
-	id, _ := uuid.NewV4()
+	id, _ := Uuid.NewV4()
 
 	return &RedisPeer{
 		Uuid:        id.String(),
@@ -33,7 +33,7 @@ func CreateRedisPeer(publicKey, group, name, description string, storage map[str
 }
 
 func CreatePeer(publicKey, group, name, description string, keepAlive time.Duration, allowedIPs []net.IPNet, storage map[string]string) *Peer {
-	id, _ := uuid.NewV4()
+	id, _ := Uuid.NewV4()
 
 	return &Peer{
 		Uuid:          id.String(),
@@ -274,24 +274,23 @@ func (guard *Guard) DeletePeer(uuid string) (err error) {
 func (guard *Guard) GetRedisPeerMap() (peers map[string]string, err error) {
 	guard.redisMutex.RLock()
 	keys, err := redis.Strings(guard.redisConn.Do("smembers", fmt.Sprintf("%s:%s", redisRoot, peerSearchPublicKey)))
-	if err != nil {
-		return
-	}
 
-	peers = make(map[string]string, len(keys))
+	if err == nil {
+		peers = make(map[string]string, len(keys))
 
-	for _, key := range keys {
-		uuidData, err := guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s", redisRoot, peerSearchPublicKey, key))
-		if err == nil {
-			uuidString, err := redis.String(uuidData, nil)
+		for _, key := range keys {
+			uuidData, err := guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s", redisRoot, peerSearchPublicKey, key))
 			if err == nil {
-				peers[key] = uuidString
+				uuidString, err := redis.String(uuidData, nil)
+				if err == nil {
+					peers[key] = uuidString
+				}
 			}
+			err = nil
 		}
 	}
 	guard.redisMutex.RUnlock()
 
-	err = nil
 	return
 }
 
@@ -304,103 +303,56 @@ func (guard *Guard) GetRedisPeerGroup(group string) (peers []string, err error) 
 }
 
 func (guard *Guard) DeleteRedisPeer(uuid string, publicKey string) error {
+	var oldGroup string
+
 	guard.redisMutex.Lock()
 	_, err := guard.redisConn.Do("srem", fmt.Sprintf("%s:%s", redisRoot, redisPeer), uuid)
-	if err != nil {
-		return err
+
+	if err == nil {
+		_, err = guard.redisConn.Do("srem", fmt.Sprintf("%s:%s", redisRoot, peerSearchPublicKey), publicKey)
 	}
 
-	_, err = guard.redisConn.Do("srem", fmt.Sprintf("%s:%s", redisRoot, peerSearchPublicKey), publicKey)
-	if err != nil {
-		return err
+	if err == nil {
+		guard.redisMutex.RLock()
+		oldGroup, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, uuid)))
+		guard.redisMutex.RUnlock()
 	}
 
-	guard.redisMutex.RLock()
-	oldGroup, err := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, uuid)))
-	if err != nil {
-		return err
-	}
-	guard.redisMutex.RUnlock()
-
-	_, err = guard.redisConn.Do("srem", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, oldGroup), uuid)
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = guard.redisConn.Do("srem", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, oldGroup), uuid)
 	}
 
-	_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, uuid))
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, uuid))
 	}
 
-	_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:name", redisRoot, redisPeer, uuid))
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:name", redisRoot, redisPeer, uuid))
 	}
 
-	_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:desc", redisRoot, redisPeer, uuid))
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:desc", redisRoot, redisPeer, uuid))
 	}
 
-	_, err = redis.String(guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, uuid)))
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = redis.String(guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, uuid)))
 	}
 
-	_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:publicKey", redisRoot, redisPeer, uuid))
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s:publicKey", redisRoot, redisPeer, uuid))
 	}
 
-	_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s", redisRoot, peerSearchPublicKey, publicKey))
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s", redisRoot, peerSearchPublicKey, publicKey))
 	}
 	guard.redisMutex.Unlock()
 
-	return nil
+	return err
 }
 
 func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
-	guard.redisMutex.Lock()
 
-	_, err := guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, peer.Uuid), peer.Uuid)
-	if err != nil {
-		return err
-	}
-
-	_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:name", redisRoot, redisPeer, peer.Uuid), peer.Name)
-	if err != nil {
-		return err
-	}
-
-	_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:desc", redisRoot, redisPeer, peer.Uuid), peer.Description)
-	if err != nil {
-		return err
-	}
-
-	_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:publicKey", redisRoot, redisPeer, peer.Uuid), peer.PublicKey)
-	if err != nil {
-		return err
-	}
-
-	guard.redisMutex.RLock()
-	oldGroup, err := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, peer.Uuid)))
-	if err == nil {
-		if oldGroup != "" {
-			_, err = guard.redisConn.Do("srem", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, oldGroup), peer.Uuid)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	guard.redisMutex.RUnlock()
-
-	_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, peer.Uuid), peer.Group)
-	if err != nil {
-		return err
-	}
-
+	// Process what we need before we lock
 	var redisData []interface{}
 	redisData = append(redisData, fmt.Sprintf("%s:%s:%s:info", redisRoot, redisPeer, peer.Uuid))
 
@@ -408,29 +360,54 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 		redisData = append(redisData, key, value)
 	}
 
-	_, err = guard.redisConn.Do("hset", redisData...)
-	if err != nil {
-		return err
+	// Make sure we unlock before we return anything
+	guard.redisMutex.Lock()
+
+	_, err := guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, peer.Uuid), peer.Uuid)
+
+	if err == nil {
+		_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:name", redisRoot, redisPeer, peer.Uuid), peer.Name)
 	}
 
-	_, err = guard.redisConn.Do("sadd", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, peer.Group), peer.Uuid)
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:desc", redisRoot, redisPeer, peer.Uuid), peer.Description)
 	}
 
-	_, err = guard.redisConn.Do("sadd", fmt.Sprintf("%s:%s", redisRoot, redisPeer), peer.Uuid)
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:publicKey", redisRoot, redisPeer, peer.Uuid), peer.PublicKey)
 	}
 
-	_, err = guard.redisConn.Do("sadd", fmt.Sprintf("%s:%s", redisRoot, peerSearchPublicKey), peer.PublicKey)
-	if err != nil {
-		return err
+	if err == nil {
+		guard.redisMutex.RLock()
+		oldGroup, err := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, peer.Uuid)))
+		if err == nil && oldGroup != "" {
+			_, err = guard.redisConn.Do("srem", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, oldGroup), peer.Uuid)
+		}
+		guard.redisMutex.RUnlock()
 	}
 
-	_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s", redisRoot, peerSearchPublicKey, peer.PublicKey), peer.Uuid)
-	if err != nil {
-		return err
+	if err == nil {
+		_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, peer.Uuid), peer.Group)
+	}
+
+	if err == nil {
+		_, err = guard.redisConn.Do("hset", redisData...)
+	}
+
+	if err == nil {
+		_, err = guard.redisConn.Do("sadd", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, peer.Group), peer.Uuid)
+	}
+
+	if err == nil {
+		_, err = guard.redisConn.Do("sadd", fmt.Sprintf("%s:%s", redisRoot, redisPeer), peer.Uuid)
+	}
+
+	if err == nil {
+		_, err = guard.redisConn.Do("sadd", fmt.Sprintf("%s:%s", redisRoot, peerSearchPublicKey), peer.PublicKey)
+	}
+
+	if err == nil {
+		_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s", redisRoot, peerSearchPublicKey, peer.PublicKey), peer.Uuid)
 	}
 
 	guard.redisMutex.Unlock()
@@ -457,6 +434,8 @@ func (guard *Guard) GetPeers() (peers map[string]*Peer, err error) {
 }
 
 func (guard *Guard) GetRedisPeer(id string) (*RedisPeer, error) {
+	// Prepare anything we need before we lock
+
 	peer := RedisPeer{
 		Uuid:        "",
 		Group:       "",
@@ -466,43 +445,51 @@ func (guard *Guard) GetRedisPeer(id string) (*RedisPeer, error) {
 		Storage:     map[string]string{},
 	}
 
+	var (
+		uuid      string
+		name      string
+		desc      string
+		publicKey string
+		group     string
+		storage   map[string]string
+	)
+
+	// Make sure we unlock before we return anything
 	guard.redisMutex.RLock()
-	data, err := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, id)))
-	if err != nil {
-		return nil, err
-	}
-	peer.Uuid = data
+	uuid, err := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, id)))
 
-	data, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:name", redisRoot, redisPeer, id)))
-	if err != nil {
-		return nil, err
+	if err == nil {
+		name, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:name", redisRoot, redisPeer, id)))
 	}
-	peer.Name = data
 
-	data, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:desc", redisRoot, redisPeer, id)))
-	if err != nil {
-		return nil, err
+	if err == nil {
+		desc, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:desc", redisRoot, redisPeer, id)))
 	}
-	peer.Description = data
 
-	data, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:publicKey", redisRoot, redisPeer, id)))
-	if err != nil {
-		return nil, err
+	if err == nil {
+		publicKey, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:publicKey", redisRoot, redisPeer, id)))
 	}
-	peer.PublicKey = data
 
-	data, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, id)))
-	if err != nil {
-		return nil, err
+	if err == nil {
+		group, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, id)))
 	}
-	peer.Group = data
 
-	info, err := redis.StringMap(guard.redisConn.Do("hgetall", fmt.Sprintf("%s:%s:%s:info", redisRoot, redisPeer, peer.Uuid)))
-	if err != nil {
-		return nil, err
+	if err == nil {
+		storage, err = redis.StringMap(guard.redisConn.Do("hgetall", fmt.Sprintf("%s:%s:%s:info", redisRoot, redisPeer, peer.Uuid)))
 	}
-	peer.Storage = info
 	guard.redisMutex.RUnlock()
+
+	// Return an error or update and return the peer
+	if err != nil {
+		return nil, err
+	}
+
+	peer.Uuid = uuid
+	peer.Name = name
+	peer.Description = desc
+	peer.PublicKey = publicKey
+	peer.Group = group
+	peer.Storage = storage
 
 	return &peer, nil
 }
