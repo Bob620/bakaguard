@@ -2,6 +2,7 @@ package guard
 
 import (
 	"net"
+	"sync"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -11,9 +12,10 @@ import (
 )
 
 type Guard struct {
-	config    config.Config
-	wg        *wgctrl.Client
-	redisConn redis.Conn
+	config     config.Config
+	wg         *wgctrl.Client
+	redisConn  redis.Conn
+	redisMutex sync.RWMutex
 }
 
 type RedisPeer struct {
