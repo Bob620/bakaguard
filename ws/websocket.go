@@ -165,13 +165,6 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 			allowedIPs, _ := params["allowedIPs"].(*IPNetParam).GetIPNet()
 			storage, _ := params["storage"].(*InterfaceParam).GetInterface()
 
-			fmt.Println(uuid)
-			fmt.Println(name)
-			fmt.Println(desc)
-			fmt.Println(keepAlive)
-			fmt.Println(allowedIPs)
-			fmt.Println(storage)
-
 			fmt.Println("Looking up peer")
 
 			peer, err := guard.GetWgPeer(uuid)
