@@ -56,7 +56,10 @@ func main() {
 	fmt.Println("Redis connected")
 
 	guard := guard.CreateGuard(conf, wg, redisConn)
-	_ = guard.CleanupPeers()
+	err = guard.CleanupPeers()
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		connState := state.InitializeConnState(*conf.Websocket)
