@@ -28,8 +28,9 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 	rpcClient.RegisterMethod(
 		"auth.admin",
 		[]parameters.Param{
-			&parameters.StringParam{Name: "password", IsRequired: true},
-		}, func(params map[string]parameters.Param) (json.RawMessage, error) {
+			&parameters.StringParam{Name: "password", Required: true},
+		},
+		func(params map[string]parameters.Param) (json.RawMessage, error) {
 			if state.HasAdminAuth() {
 				return json.Marshal(Auth{true})
 			}
@@ -42,9 +43,10 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 	rpcClient.RegisterMethod(
 		"auth.user",
 		[]parameters.Param{
-			&parameters.StringParam{Name: "username", IsRequired: true},
-			&parameters.StringParam{Name: "password", IsRequired: true},
-		}, func(params map[string]parameters.Param) (json.RawMessage, error) {
+			&parameters.StringParam{Name: "username", Required: true},
+			&parameters.StringParam{Name: "password", Required: true},
+		},
+		func(params map[string]parameters.Param) (json.RawMessage, error) {
 			username, _ := params["username"].(*parameters.StringParam).GetString()
 			password, _ := params["password"].(*parameters.StringParam).GetString()
 
@@ -54,8 +56,9 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 	rpcClient.RegisterMethod(
 		"peers.get",
 		[]parameters.Param{
-			&parameters.StringParam{Name: "uuid", IsRequired: true},
-		}, func(params map[string]parameters.Param) (json.RawMessage, error) {
+			&parameters.StringParam{Name: "uuid", Required: true},
+		},
+		func(params map[string]parameters.Param) (json.RawMessage, error) {
 			validGroups := state.GetScopeGroups("peers.get")
 
 			if len(validGroups) == 0 {
@@ -114,7 +117,7 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 	rpcClient.RegisterMethod(
 		"peers.getGroup",
 		[]parameters.Param{
-			&parameters.StringParam{Name: "group", IsRequired: true},
+			&parameters.StringParam{Name: "group", Required: true},
 		},
 		func(params map[string]parameters.Param) (json.RawMessage, error) {
 			validGroups := state.GetScopeGroups("peers.getGroup")
@@ -141,7 +144,7 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 	rpcClient.RegisterMethod(
 		"peers.update",
 		[]parameters.Param{
-			&parameters.StringParam{Name: "uuid", IsRequired: true},
+			&parameters.StringParam{Name: "uuid", Required: true},
 			&parameters.StringParam{Name: "name"},
 			&parameters.StringParam{Name: "description"},
 			&parameters.StringParam{Name: "keepAlive", Default: "-1s"},
@@ -207,8 +210,8 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 	rpcClient.RegisterMethod(
 		"peers.add",
 		[]parameters.Param{
-			&parameters.StringParam{Name: "publicKey", IsRequired: true},
-			&parameters.StringParam{Name: "group", IsRequired: true},
+			&parameters.StringParam{Name: "publicKey", Required: true},
+			&parameters.StringParam{Name: "group", Required: true},
 			&parameters.StringParam{Name: "name"},
 			&parameters.StringParam{Name: "description"},
 			&parameters.StringParam{Name: "keepAlive", Default: "-1s"},
@@ -264,7 +267,7 @@ func CreateWs(guard *Guard.Guard, state *state.State) WS {
 	rpcClient.RegisterMethod(
 		"peers.delete",
 		[]parameters.Param{
-			&parameters.StringParam{Name: "uuid", IsRequired: true},
+			&parameters.StringParam{Name: "uuid", Required: true},
 		},
 		func(params map[string]parameters.Param) (json.RawMessage, error) {
 			validGroups := state.GetScopeGroups("peers.delete")

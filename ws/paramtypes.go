@@ -2,21 +2,20 @@ package ws
 
 import (
 	"encoding/json"
-	"errors"
 	"net"
 
 	"github.com/bob620/baka-rpc-go/parameters"
 )
 
 type IPNetParam struct {
-	Name       string
-	Default    []net.IPNet
-	IsRequired bool
-	data       json.RawMessage
+	Name     string
+	Default  []net.IPNet
+	Required bool
+	data     json.RawMessage
 }
 
 func (param *IPNetParam) Clone(data json.RawMessage) (parameters.Param, error) {
-	clone := IPNetParam{param.Name, param.Default, param.IsRequired, param.data}
+	clone := IPNetParam{param.Name, param.Default, param.Required, param.data}
 	if data != nil {
 		err := clone.SetData(data)
 		if err != nil {
@@ -24,10 +23,11 @@ func (param *IPNetParam) Clone(data json.RawMessage) (parameters.Param, error) {
 		}
 	}
 
-	if data == nil && param.IsRequired {
-		return nil, errors.New("value needed")
-	}
 	return &clone, nil
+}
+
+func (param *IPNetParam) IsRequired() bool {
+	return param.Required
 }
 
 func (param *IPNetParam) SetName(newName string) {
@@ -75,14 +75,14 @@ func (param *IPNetParam) UnmarshalJSON(jsonData []byte) (err error) {
 }
 
 type InterfaceParam struct {
-	Name       string
-	Default    map[string]interface{}
-	IsRequired bool
-	data       json.RawMessage
+	Name     string
+	Default  map[string]interface{}
+	Required bool
+	data     json.RawMessage
 }
 
 func (param *InterfaceParam) Clone(data json.RawMessage) (parameters.Param, error) {
-	clone := InterfaceParam{param.Name, param.Default, param.IsRequired, param.data}
+	clone := InterfaceParam{param.Name, param.Default, param.Required, param.data}
 	if data != nil {
 		err := clone.SetData(data)
 		if err != nil {
@@ -90,10 +90,11 @@ func (param *InterfaceParam) Clone(data json.RawMessage) (parameters.Param, erro
 		}
 	}
 
-	if data == nil && param.IsRequired {
-		return nil, errors.New("value needed")
-	}
 	return &clone, nil
+}
+
+func (param *InterfaceParam) IsRequired() bool {
+	return param.Required
 }
 
 func (param *InterfaceParam) SetName(newName string) {
