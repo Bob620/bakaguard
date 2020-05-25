@@ -281,7 +281,6 @@ func (guard *Guard) GetRedisPeerMap() (peers map[string]string, err error) {
 	peers = make(map[string]string, len(keys))
 
 	for _, key := range keys {
-		fmt.Println(key)
 		uuidData, err := guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s", redisRoot, peerSearchPublicKey, key))
 		if err == nil {
 			uuidString, err := redis.String(uuidData, nil)
