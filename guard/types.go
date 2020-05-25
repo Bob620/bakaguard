@@ -15,7 +15,8 @@ type Guard struct {
 	config     config.Config
 	wg         *wgctrl.Client
 	redisConn  redis.Conn
-	redisMutex sync.RWMutex
+	redisRead  sync.Mutex
+	redisWrite sync.Mutex
 }
 
 type RedisPeer struct {

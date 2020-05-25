@@ -54,7 +54,8 @@ func CreateGuard(conf config.Config, wg *wgctrl.Client, redisConn redis.Conn) *G
 		config:     conf,
 		wg:         wg,
 		redisConn:  redisConn,
-		redisMutex: sync.RWMutex{},
+		redisRead:  sync.Mutex{},
+		redisWrite: sync.Mutex{},
 	}
 }
 
@@ -272,7 +273,7 @@ func (guard *Guard) DeletePeer(uuid string) (err error) {
 }
 
 func (guard *Guard) GetRedisPeerMap() (peers map[string]string, err error) {
-	guard.redisMutex.RLock()
+	guard.redisRead.Lock()
 	keys, err := redis.Strings(guard.redisConn.Do("smembers", fmt.Sprintf("%s:%s", redisRoot, peerSearchPublicKey)))
 
 	if err == nil {
@@ -289,15 +290,15 @@ func (guard *Guard) GetRedisPeerMap() (peers map[string]string, err error) {
 			err = nil
 		}
 	}
-	guard.redisMutex.RUnlock()
+	guard.redisRead.Unlock()
 
 	return
 }
 
 func (guard *Guard) GetRedisPeerGroup(group string) (peers []string, err error) {
-	guard.redisMutex.RLock()
+	guard.redisRead.Lock()
 	peers, err = redis.Strings(guard.redisConn.Do("smembers", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, group)))
-	guard.redisMutex.RUnlock()
+	guard.redisRead.Unlock()
 
 	return
 }
@@ -305,7 +306,7 @@ func (guard *Guard) GetRedisPeerGroup(group string) (peers []string, err error) 
 func (guard *Guard) DeleteRedisPeer(uuid string, publicKey string) error {
 	var oldGroup string
 
-	guard.redisMutex.Lock()
+	guard.redisWrite.Lock()
 	_, err := guard.redisConn.Do("srem", fmt.Sprintf("%s:%s", redisRoot, redisPeer), uuid)
 
 	if err == nil {
@@ -313,9 +314,9 @@ func (guard *Guard) DeleteRedisPeer(uuid string, publicKey string) error {
 	}
 
 	if err == nil {
-		guard.redisMutex.RLock()
+		guard.redisRead.Lock()
 		oldGroup, err = redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, uuid)))
-		guard.redisMutex.RUnlock()
+		guard.redisRead.Unlock()
 	}
 
 	if err == nil {
@@ -345,7 +346,7 @@ func (guard *Guard) DeleteRedisPeer(uuid string, publicKey string) error {
 	if err == nil {
 		_, err = guard.redisConn.Do("del", fmt.Sprintf("%s:%s:%s", redisRoot, peerSearchPublicKey, publicKey))
 	}
-	guard.redisMutex.Unlock()
+	guard.redisWrite.Unlock()
 
 	return err
 }
@@ -361,7 +362,7 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 	}
 
 	// Make sure we unlock before we return anything
-	guard.redisMutex.Lock()
+	guard.redisWrite.Lock()
 
 	_, err := guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, peer.Uuid), peer.Uuid)
 
@@ -378,12 +379,12 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 	}
 
 	if err == nil {
-		guard.redisMutex.RLock()
+		guard.redisRead.Lock()
 		oldGroup, err := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:group", redisRoot, redisPeer, peer.Uuid)))
 		if err == nil && oldGroup != "" {
 			_, err = guard.redisConn.Do("srem", fmt.Sprintf("%s:%s:%s", redisRoot, redisGroups, oldGroup), peer.Uuid)
 		}
-		guard.redisMutex.RUnlock()
+		guard.redisRead.Unlock()
 	}
 
 	if err == nil {
@@ -410,7 +411,7 @@ func (guard *Guard) SetRedisPeer(peer *RedisPeer) error {
 		_, err = guard.redisConn.Do("set", fmt.Sprintf("%s:%s:%s", redisRoot, peerSearchPublicKey, peer.PublicKey), peer.Uuid)
 	}
 
-	guard.redisMutex.Unlock()
+	guard.redisWrite.Unlock()
 
 	return nil
 }
@@ -455,7 +456,7 @@ func (guard *Guard) GetRedisPeer(id string) (*RedisPeer, error) {
 	)
 
 	// Make sure we unlock before we return anything
-	guard.redisMutex.RLock()
+	guard.redisRead.Lock()
 	uuid, err := redis.String(guard.redisConn.Do("get", fmt.Sprintf("%s:%s:%s:uuid", redisRoot, redisPeer, id)))
 
 	if err == nil {
@@ -477,7 +478,7 @@ func (guard *Guard) GetRedisPeer(id string) (*RedisPeer, error) {
 	if err == nil {
 		storage, err = redis.StringMap(guard.redisConn.Do("hgetall", fmt.Sprintf("%s:%s:%s:info", redisRoot, redisPeer, peer.Uuid)))
 	}
-	guard.redisMutex.RUnlock()
+	guard.redisRead.Unlock()
 
 	// Return an error or update and return the peer
 	if err != nil {
